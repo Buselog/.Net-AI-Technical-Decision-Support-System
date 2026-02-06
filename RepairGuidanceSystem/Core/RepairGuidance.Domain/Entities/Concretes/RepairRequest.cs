@@ -31,5 +31,7 @@ namespace RepairGuidance.Domain.Entities.Concretes
         //Bir isteğin birden çok adımı olabilir.
         public ICollection<RepairStep> Steps { get; set; }
 
+        public bool IsTestData { get; set; } = true;
+
     }
 }
