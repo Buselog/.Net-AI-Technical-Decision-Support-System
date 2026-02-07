@@ -10,11 +10,16 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="8.0.22" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Npgsql" Version="10.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Core\RepairGuidance.Application\RepairGuidance.Application.csproj" />
     <ProjectReference Include="..\..\Core\RepairGuidance.Contracts\RepairGuidance.Contract.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Managers\Prediction\" />
   </ItemGroup>
 
 </Project>

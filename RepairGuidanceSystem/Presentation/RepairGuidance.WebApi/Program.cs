@@ -2,7 +2,6 @@ using RepairGuidance.Persistence.DependencyResolvers;
 using RepairGuidance.Application.DependencyResolvers;
 using RepairGuidance.InnerInfrastructure.DependencyResolvers;
 using RepairGuidance.Application.Managers;
-using RepairGuidance.Persistence.DataSeeding;
 using Polly;
 using RepairGuidance.Infrastructure.ExternalServices;
 
@@ -33,7 +32,6 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.SeedDatabase();
 }
 
 app.UseHttpsRedirection();
