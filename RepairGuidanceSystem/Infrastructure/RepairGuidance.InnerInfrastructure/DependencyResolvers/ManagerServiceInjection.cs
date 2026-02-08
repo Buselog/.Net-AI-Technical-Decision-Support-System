@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.InnerInfrastructure.Managers;
+using RepairGuidance.InnerInfrastructure.Managers.Prediction;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace RepairGuidance.InnerInfrastructure.DependencyResolvers
             services.AddScoped<IUserToolManager, UserToolManager>();
             services.AddScoped<IRepairRequestManager, RepairRequestManager>();
             services.AddScoped<IRepairStepManager, RepairStepManager>();
+            services.AddScoped<IPredictionManager, PredictionManager>();
 
         }
     }

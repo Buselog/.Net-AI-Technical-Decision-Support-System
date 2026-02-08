@@ -9,5 +9,7 @@ namespace RepairGuidance.Contract.Repositories
 {
     public interface IRepairRequestRepository : IBaseRepository<RepairRequest>
     {
+        // ML.NET eğitimi için kullanıcı bilgileriyle (AppUser) birlikte tüm listeyi çeker.
+        Task<List<RepairRequest>> GetAllWithUsersAsync();
     }
 }
