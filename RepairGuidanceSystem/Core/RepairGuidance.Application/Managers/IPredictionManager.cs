@@ -13,6 +13,7 @@ namespace RepairGuidance.Application.Managers
         Task TrainModelAsync();
 
         // Cihaz, kullanıcı tecrübesi ve hedef zorluğu alır, geriye başarı ihtimalini (0.0 - 1.0) döner.
-        Task<float> GetSuccessProbabilityAsync(string deviceName, string experienceLevel, string targetLevel);
+        Task<float> GetSuccessProbabilityAsync(string deviceName, float experienceScore, string targetLevel);
     }
 }
+

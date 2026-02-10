@@ -19,8 +19,10 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
     {
         [LoadColumn(0)]
         public string DeviceName { get; set; }
+
         [LoadColumn(1)]
-        public string ExperienceLevel { get; set; }
+        public float ExperienceScore { get; set; }
+
         [LoadColumn(2)]
         public string TargetLevel { get; set; }
 
@@ -68,7 +70,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
             var trainingData = requests.Select(r => new ModelInput
             {
                 DeviceName = r.DeviceName,
-                ExperienceLevel = r.AppUser?.ExperienceLevel ?? "Acemi",
+                ExperienceScore = (float)(r.AppUser?.ExperienceScore ?? 0),
                 TargetLevel = r.TargetLevel,
                 // Veritabanındaki "Completed" metnini C# seviyesinde True'ya çeviriyoruz.
                 Status = r.Status == "Completed"
@@ -94,9 +96,8 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
             //   Sadece metinleri sayısallaştırıp eğitime geçiyoruz:
 
             var pipeline = _mlContext.Transforms.Categorical.OneHotEncoding("DeviceNameEncoded", "DeviceName")
-            .Append(_mlContext.Transforms.Categorical.OneHotEncoding("ExperienceEncoded", "ExperienceLevel"))
             .Append(_mlContext.Transforms.Categorical.OneHotEncoding("TargetEncoded", "TargetLevel"))
-            .Append(_mlContext.Transforms.Concatenate("Features", "DeviceNameEncoded", "ExperienceEncoded", "TargetEncoded"))
+            .Append(_mlContext.Transforms.Concatenate("Features", "DeviceNameEncoded", "TargetEncoded", "ExperienceScore"))
             // FastTree zaten bool bir 'Label' sütunu bekliyor ve biz ona bunu sağladık.
             .Append(_mlContext.BinaryClassification.Trainers.FastTree(labelColumnName: "Label", featureColumnName: "Features"));
 
@@ -115,7 +116,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
 
         }
 
-        public async Task<float> GetSuccessProbabilityAsync(string deviceName, string experienceLevel, string targetLevel)
+        public async Task<float> GetSuccessProbabilityAsync(string deviceName, float experienceScore, string targetLevel)
         {
             // Eğer daha önce model eğitilmediyse önce eğit (Otomasyon sağlar)
             if (!File.Exists(_modelPath)) await TrainModelAsync();
@@ -132,7 +133,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
             var input = new ModelInput
             {
                 DeviceName = deviceName,
-                ExperienceLevel = experienceLevel,
+                ExperienceScore = experienceScore,
                 TargetLevel = targetLevel
             };
 
