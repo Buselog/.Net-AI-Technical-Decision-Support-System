@@ -99,7 +99,9 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
             .Append(_mlContext.Transforms.Categorical.OneHotEncoding("TargetEncoded", "TargetLevel"))
             .Append(_mlContext.Transforms.Concatenate("Features", "DeviceNameEncoded", "TargetEncoded", "ExperienceScore"))
             // FastTree zaten bool bir 'Label' sütunu bekliyor ve biz ona bunu sağladık.
-            .Append(_mlContext.BinaryClassification.Trainers.FastTree(labelColumnName: "Label", featureColumnName: "Features"));
+            // .Append(_mlContext.BinaryClassification.Trainers.FastTree(labelColumnName: "Label", featureColumnName: "Features"));
+
+            .Append(_mlContext.BinaryClassification.Trainers.LbfgsLogisticRegression(labelColumnName: "Label", featureColumnName: "Features"));
 
             // Adım 4: Eğitim başlıyor (FİT):
             // Bu satırda model veriyi öğrenir ve örüntüleri (Pattern) çıkarır.

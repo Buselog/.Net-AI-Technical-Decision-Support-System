@@ -28,7 +28,7 @@ namespace RepairGuidance.WebApi.Controllers
         public async Task<IActionResult> Test()
         {
             // Örnek Senaryo: Acemi bir kullanıcı, Uzmanlık gerektiren bir Laptop tamirinde ne kadar başarılı olur?
-            var probability = await _predictionManager.GetSuccessProbabilityAsync("Laptop", 99, "Acemi");
+            var probability = await _predictionManager.GetSuccessProbabilityAsync("Gardırop", 95, "Uzman");
 
             return Ok(new
             {
