@@ -15,8 +15,11 @@ namespace RepairGuidance.WebApi.Controllers
             _predictionManager = predictionManager;
         }
 
+
         // 1. Eğitimi Tetikle: Tarayıcıdan bu adrese gittiğinde 5000 satır işlenecek.
-        [HttpGet("train")]
+        // Bu metot artık dışarıdan çağrılamaz
+        [NonAction]
+        [HttpGet("train")] 
         public async Task<IActionResult> Train()
         {
             await _predictionManager.TrainModelAsync();
@@ -28,7 +31,7 @@ namespace RepairGuidance.WebApi.Controllers
         public async Task<IActionResult> Test()
         {
             // Örnek Senaryo: Acemi bir kullanıcı, Uzmanlık gerektiren bir Laptop tamirinde ne kadar başarılı olur?
-            var probability = await _predictionManager.GetSuccessProbabilityAsync("Gardırop", 95, "Uzman");
+            var probability = await _predictionManager.GetSuccessProbabilityAsync("Gardırop", 50, "Acemi");
 
             return Ok(new
             {

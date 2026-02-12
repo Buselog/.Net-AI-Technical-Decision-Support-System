@@ -51,7 +51,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
         // Environment.CurrentDirectory: Uygulamanın o an çalıştığı (bin/Debug klasörü gibi) 
         // ana klasör yolunu verir.
         // Yani modelimiz projenin tam kalbine "repair_model.zip" adıyla kaydedilecek.
-        private string _modelPath = Path.Combine(Environment.CurrentDirectory, "repair_model.zip");
+        private string _modelPath = Path.Combine(AppContext.BaseDirectory, "Models", "repair_model.zip");
 
         public PredictionManager(IRepairRequestRepository repository)
         {
