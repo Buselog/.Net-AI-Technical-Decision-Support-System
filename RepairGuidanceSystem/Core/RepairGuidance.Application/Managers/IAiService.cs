@@ -13,5 +13,7 @@ namespace RepairGuidance.Application.Managers
         // bize bir metin (rehber) dönecek olan metodun imzası.
 
         Task<AiRepairResult> GetRepairGuidanceAsync(string userProblem, string deviceName, List<string> availableTools, string targetLevel);
+
+        Task<DeviceAnalysisResult> AnalyzeNewDeviceAsync(string deviceName);
     }
 }
