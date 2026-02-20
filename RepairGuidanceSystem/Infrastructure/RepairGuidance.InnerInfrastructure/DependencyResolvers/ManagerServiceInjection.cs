@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RepairGuidance.Application.Managers;
+using RepairGuidance.Contract.Repositories;
+using RepairGuidance.Infrastructure.ExternalServices;
 using RepairGuidance.InnerInfrastructure.Managers;
 using RepairGuidance.InnerInfrastructure.Managers.Prediction;
 using System;
@@ -19,6 +21,7 @@ namespace RepairGuidance.InnerInfrastructure.DependencyResolvers
             services.AddScoped<IRepairRequestManager, RepairRequestManager>();
             services.AddScoped<IRepairStepManager, RepairStepManager>();
             services.AddScoped<IPredictionManager, PredictionManager>();
+            services.AddScoped<IAiService, GroqAiService>();
 
         }
     }

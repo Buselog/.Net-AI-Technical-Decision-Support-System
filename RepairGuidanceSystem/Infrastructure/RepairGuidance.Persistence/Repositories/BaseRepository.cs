@@ -13,7 +13,7 @@ namespace RepairGuidance.Persistence.Repositories
 {
     public class BaseRepository<T> : IBaseRepository<T> where T : class, IEntity
     {
-        private readonly AppDbContext _context;
+        protected readonly AppDbContext _context;
         private readonly DbSet<T> _dbSet;
         
         public BaseRepository(AppDbContext context)

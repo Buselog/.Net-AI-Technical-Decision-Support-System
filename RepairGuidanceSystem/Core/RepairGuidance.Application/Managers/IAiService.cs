@@ -14,6 +14,7 @@ namespace RepairGuidance.Application.Managers
 
         Task<AiRepairResult> GetRepairGuidanceAsync(string userProblem, string deviceName, List<string> availableTools, string targetLevel);
 
+        //Sistemde olmayan cihazlar için cihazı analiz eden ve uygunluk veren metot:
         Task<DeviceAnalysisResult> AnalyzeNewDeviceAsync(string deviceName);
     }
 }
