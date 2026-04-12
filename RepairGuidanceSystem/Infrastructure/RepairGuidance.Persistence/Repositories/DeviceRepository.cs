@@ -31,5 +31,24 @@ namespace RepairGuidance.Persistence.Repositories
             await SaveChangesAsync();
             return newDevice;
         }
+
+        public async Task<Device?> FindBestMatchAsync(string deviceName)
+        {
+            if (string.IsNullOrWhiteSpace(deviceName)) return null;
+
+            // 1. ADIM: Tam Eşleşme (Performans için önce buna bakıyoruz)
+            var directMatch = await _context.Devices
+                .FirstOrDefaultAsync(x => x.Name.ToLower() == deviceName.ToLower());
+
+            if (directMatch != null) return directMatch;
+
+            // 2. ADIM: Bulanık Arama (Pattern'i dışarıda hazırlıyoruz)
+            var searchPattern = $"%{deviceName}%";
+
+            // EF Core'un rahat çevirebileceği basit bir sorgu:
+            return await _context.Devices
+                .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Name, searchPattern)
+                                       || deviceName.ToLower().Contains(x.Name.ToLower()));
+        }
     }
 }

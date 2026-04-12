@@ -1,45 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.ML;
-using Microsoft.ML.Data;
+﻿using Microsoft.ML;
+using RepairGuidance.Application.Models;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Contract.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Intrinsics.X86;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
 {
     // 1. ML.NET'in ANLAYACAĞI VERİ SINIFLARI (DTO gibi düşün)
     // Bu sınıflar, veritabanındaki veriyi ML motoruna "tercüme" eder.
-
-    public class ModelInput
-    {
-        [LoadColumn(0)]
-        public string DeviceName { get; set; }
-
-        [LoadColumn(1)]
-        public float ExperienceScore { get; set; }
-
-        [LoadColumn(2)]
-        public string TargetLevel { get; set; }
-
-        // Doğrudan bool yaparak karmaşayı bitiriyoruz.
-        // ColumnName("Label") özniteliği, ML.NET'e bu sütunun tahmin hedefi olduğunu söyler.
-        [ColumnName("Label")]
-        public bool Status { get; set; }
-    }
-
-    public class ModelOutput
-    {
-        // Tahmin edilen sonuç ("Completed" veya "Failed")
-        [ColumnName("PredictedLabel")]
-        public bool Prediction { get; set; }
-        public float Probability { get; set; } // Doğrudan başarı olasılığını verir. 
-        public float Score { get; set; } // Olasılık değeri
-    }
 
 
     public class PredictionManager : IPredictionManager
@@ -69,7 +36,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
             // Veriyi ML.NET'in anlayacağı ModelInput formatına çevir:
             var trainingData = requests.Select(r => new ModelInput
             {
-                DeviceName = r.DeviceName,
+                DeviceDifficulty = (float)r.DeviceDifficulty,
                 ExperienceScore = (float)(r.AppUser?.ExperienceScore ?? 0),
                 TargetLevel = r.TargetLevel,
                 // Veritabanındaki "Completed" metnini C# seviyesinde True'ya çeviriyoruz.
@@ -92,23 +59,20 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
             // Önce algoritmayı Binary (İkili) sınıflandırma olarak kurgulayalım çünkü sonucumuz ya Başarılı ya Başarısız.
             // 1. Veriyi Boolean (True/False) formatına dönüştüren yeni Pipeline
 
-            //   Artık pipeline içinde ConvertType veya MapValueToKey gibi riskli adımlara gerek kalmadı.
-            //   Sadece metinleri sayısallaştırıp eğitime geçiyoruz:
+            var pipeline = _mlContext.Transforms.Categorical.OneHotEncoding("TargetEncoded", "TargetLevel")
+           .Append(_mlContext.Transforms.Concatenate("Features", "TargetEncoded", "DeviceDifficulty", "ExperienceScore"))
+             // FastTree zaten bool bir 'Label' sütunu bekliyor ve biz ona bunu sağladık.
+             // .Append(_mlContext.BinaryClassification.Trainers.FastTree(labelColumnName: "Label", featureColumnName: "Features"));
 
-            var pipeline = _mlContext.Transforms.Categorical.OneHotEncoding("DeviceNameEncoded", "DeviceName")
-            .Append(_mlContext.Transforms.Categorical.OneHotEncoding("TargetEncoded", "TargetLevel"))
-            .Append(_mlContext.Transforms.Concatenate("Features", "DeviceNameEncoded", "TargetEncoded", "ExperienceScore"))
-            // FastTree zaten bool bir 'Label' sütunu bekliyor ve biz ona bunu sağladık.
-            // .Append(_mlContext.BinaryClassification.Trainers.FastTree(labelColumnName: "Label", featureColumnName: "Features"));
-
-            .Append(_mlContext.BinaryClassification.Trainers.LbfgsLogisticRegression(labelColumnName: "Label", featureColumnName: "Features"));
+             .Append(_mlContext.BinaryClassification.Trainers.LbfgsLogisticRegression(labelColumnName: "Label", featureColumnName: "Features"));
 
             // Adım 4: Eğitim başlıyor (FİT):
             // Bu satırda model veriyi öğrenir ve örüntüleri (Pattern) çıkarır.
             // Fit: "Öğren" komutudur. Pipeline'daki tüm işlemler bu satırda gerçekleşir.
             var model = pipeline.Fit(dataView);
 
-
+            var directory = Path.GetDirectoryName(_modelPath);
+            if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
             // Adım 5: Modeli dosyaya kaydet:
             // Modeli eğitip RAM'de bırakmıyoruz, bir .zip dosyası olarak saklıyoruz.
             // Save: Eğitilen zekayı dosyaya yazarız.
@@ -118,32 +82,22 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
 
         }
 
-        public async Task<float> GetSuccessProbabilityAsync(string deviceName, float experienceScore, string targetLevel)
+        public ModelOutput Predict(int difficulty, string targetLevel)
         {
-            // Eğer daha önce model eğitilmediyse önce eğit (Otomasyon sağlar)
-            if (!File.Exists(_modelPath)) await TrainModelAsync();
+            // Mühürlü modelden tahmin al
+            if (!File.Exists(_modelPath)) throw new Exception("Model dosyası bulunamadı. Lütfen önce eğitin.");
 
-            // Kaydedilen modeli yükle:
-            // Load: Dondurulmuş modeli tekrar RAM'e yükler.
-            ITransformer loadedModel = _mlContext.Model.Load(_modelPath, out var modelSchema);
+            ITransformer loadedModel = _mlContext.Model.Load(_modelPath, out var schema);
+            var engine = _mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(loadedModel);
 
-            //Tek bir Tahmin yapmak için PredictionEngine olustur:
-            // PredictionEngine: "Tahmin Motoru". Tekil bir sorgu için modeli hazır hale getirir.
-            var predictionEngine = _mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(loadedModel);
-
-            // Tahmin edilecek veriyi hazırla
-            var input = new ModelInput
+            // Uygulamadaki ExperienceScore'u User tablosundan alabilirsin ama mühürlü model 
+            // dünkü 5000 veriye göre eğitildiği için burada bir baz değer (örn: 50) verebiliriz.
+            return engine.Predict(new ModelInput
             {
-                DeviceName = deviceName,
-                ExperienceScore = experienceScore,
-                TargetLevel = targetLevel
-            };
-
-            // Tahmini gerçekleştir:
-            var result = predictionEngine.Predict(input);
-
-
-            return result.Probability;
+                DeviceDifficulty = (float)difficulty,
+                TargetLevel = targetLevel,
+                ExperienceScore = 50 // Baz tecrübe
+            });
         }
 
     }

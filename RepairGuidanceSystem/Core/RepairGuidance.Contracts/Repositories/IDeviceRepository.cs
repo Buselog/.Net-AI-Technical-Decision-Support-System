@@ -11,5 +11,7 @@ namespace RepairGuidance.Contract.Repositories
     {
         // AI "Bu cihaz uygundur" dediğinde, bu cihazı veritabanına asenkron bir şekilde kaydedip sistemin öğrenmesini sağlamak:
         Task<Device> CreateAndReturnDeviceAsync(string name, int difficulty, int categoryId);
+
+        Task<Device?> FindBestMatchAsync(string deviceName);
     }
 }

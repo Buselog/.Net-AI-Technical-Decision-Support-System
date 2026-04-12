@@ -15,28 +15,27 @@ namespace RepairGuidance.WebApi.Controllers
             _predictionManager = predictionManager;
         }
 
-
-        // 1. Eğitimi Tetikle: Tarayıcıdan bu adrese gittiğinde 5000 satır işlenecek.
-        // Bu metot artık dışarıdan çağrılamaz
-        [NonAction]
-        [HttpGet("train")] 
+        // 1. Eğitimi Tetikle: Yeni sayısal modelini oluşturmak için bunu bir kez çalıştır.
+        [HttpGet("train")]
         public async Task<IActionResult> Train()
         {
             await _predictionManager.TrainModelAsync();
-            return Ok("Model başarıyla eğitildi ve 'repair_model.zip' olarak kaydedildi.");
+            return Ok("Model başarıyla eğitildi ve sayısal skorlar (Difficulty) baz alınarak kaydedildi.");
         }
 
-        // 2. Tahmin Yap: Örnek bir cihaz ve seviye gönderip başarı oranını soralım.
+        // 2. Tahmin Testi: Yeni 'Predict' metodunu deniyoruz.
         [HttpGet("test-predict")]
-        public async Task<IActionResult> Test()
+        public IActionResult Test(int difficulty = 80, string targetLevel = "Acemi")
         {
-            // Örnek Senaryo: Acemi bir kullanıcı, Uzmanlık gerektiren bir Laptop tamirinde ne kadar başarılı olur?
-            var probability = await _predictionManager.GetSuccessProbabilityAsync("Gardırop", 50, "Acemi");
+            // Yeni metodumuz artık Task (async) değil, doğrudan nesne dönüyor.
+            var result = _predictionManager.Predict(difficulty, targetLevel);
 
             return Ok(new
             {
-                Message = "Tahmin Sonucu",
-                SuccessProbability = $"%{probability * 100:F2}" // Örn: %12.45 şeklinde formatlar.
+                Input = new { DeviceDifficulty = difficulty, UserLevel = targetLevel },
+                Prediction = result.Prediction ? "Başarılı Olabilir" : "Başarısız Olabilir",
+                SuccessProbability = $"%{result.Probability * 100:F2}",
+                RawScore = result.Score // Modelin ürettiği ham skor
             });
         }
     }
