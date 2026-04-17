@@ -8,7 +8,7 @@ namespace RepairGuidance.Application.Managers
         // Veritabanındaki 5000 veriyi kullanarak modeli eğitir ve .zip olarak kaydeder
         Task TrainModelAsync();
 
-        ModelOutput Predict(int difficulty, string targetLevel);
+        ModelOutput Predict(int difficulty, string targetLevel, float experienceScore);
     }
 }
 

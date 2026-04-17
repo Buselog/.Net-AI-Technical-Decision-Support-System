@@ -11,5 +11,7 @@ namespace RepairGuidance.Application.Managers
     public interface IRepairRequestManager : IBaseManager<RepairRequest, RepairRequestDto>
     {
         Task<RepairRequestDto> CreateAiSupportGuidanceAsync(CreateRepairRequestDto dto);
+
+        Task<string> CompleteRepairRequestAsync(int requestId);
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace RepairGuidance.Application.Models
@@ -14,15 +15,19 @@ namespace RepairGuidance.Application.Models
     public class DeviceAnalysisResult
     {
         // AI'nın cihazı kapsama uygun bulup bulmadığı (true/false)
+        [JsonPropertyName("isEligible")]
         public bool IsEligible { get; set; }
 
         // AI'nın belirlediği 1-100 arası zorluk puanı
+        [JsonPropertyName("difficulty")]
         public int DifficultyScore { get; set; }
 
         // AI'nın seçtiği kategori ID'si (Senin 1-15 arası tablondaki ID)
+        [JsonPropertyName("categoryId")]
         public int ToolCategoryId { get; set; }
 
         // AI'nın neden uygun bulduğuna veya bulmadığına dair kısa not
+        [JsonPropertyName("reason")]
         public string AnalysisReason { get; set; }
     }
 }

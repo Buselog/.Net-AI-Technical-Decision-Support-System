@@ -19,5 +19,16 @@ namespace RepairGuidance.InnerInfrastructure.Managers
         {
             _repository = repository;
         }
+
+        public async Task<bool> UpdateStepStatusAsync(int stepId, bool isCompleted)
+        {
+            var step = await _repository.GetByIdAsync(stepId);
+            if (step == null) return false;
+
+            step.IsCompleted = isCompleted;
+            _repository.Update(step);
+            await _repository.SaveChangesAsync();
+            return true;
+        }
     }
 }

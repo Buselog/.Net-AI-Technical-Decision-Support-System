@@ -27,7 +27,8 @@ namespace RepairGuidance.Application.Mappings
             CreateMap<RepairStep, RepairStepDto>().ReverseMap();
 
             // Yeni isteği Dto şeklinde alırız, bunu entity'e tek yönlü dönüştürmek yeterlidir.
-            CreateMap<CreateRepairRequestDto, RepairRequest>();
+            CreateMap<CreateRepairRequestDto, RepairRequest>()
+                .ForMember(dest=> dest.Id, opt=> opt.Ignore());
         
         }
 

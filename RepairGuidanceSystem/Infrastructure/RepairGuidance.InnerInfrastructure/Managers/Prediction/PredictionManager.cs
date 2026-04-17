@@ -18,7 +18,8 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
         // Environment.CurrentDirectory: Uygulamanın o an çalıştığı (bin/Debug klasörü gibi) 
         // ana klasör yolunu verir.
         // Yani modelimiz projenin tam kalbine "repair_model.zip" adıyla kaydedilecek.
-        private string _modelPath = Path.Combine(AppContext.BaseDirectory, "Models", "repair_model.zip");
+        //private string _modelPath = Path.Combine(AppContext.BaseDirectory, "Models", "repair_model.zip");
+        private string _modelPath = Path.Combine(Directory.GetParent(AppContext.BaseDirectory).Parent.Parent.Parent.FullName, "Models", "repair_model.zip");
 
         public PredictionManager(IRepairRequestRepository repository)
         {
@@ -82,7 +83,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
 
         }
 
-        public ModelOutput Predict(int difficulty, string targetLevel)
+        public ModelOutput Predict(int difficulty, string targetLevel, float experienceScore)
         {
             // Mühürlü modelden tahmin al
             if (!File.Exists(_modelPath)) throw new Exception("Model dosyası bulunamadı. Lütfen önce eğitin.");
@@ -96,7 +97,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
             {
                 DeviceDifficulty = (float)difficulty,
                 TargetLevel = targetLevel,
-                ExperienceScore = 50 // Baz tecrübe
+                ExperienceScore = experienceScore
             });
         }
 

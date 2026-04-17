@@ -12,92 +12,70 @@ namespace RepairGuidance.InnerInfrastructure.Managers
         private readonly IUserToolRepository _userToolRepository;
         private readonly IDeviceRepository _deviceRepository;
         private readonly IPredictionManager _predictionManager;
+        private readonly IAppUserRepository _appUserRepository;
 
-        public RepairRequestManager(IRepairRequestRepository repository, IMapper mapper, IAiService aiService, IUserToolRepository userToolRepository, IDeviceRepository deviceRepository, IPredictionManager predictionManager):base(repository, mapper)
+        public RepairRequestManager(IRepairRequestRepository repository, IMapper mapper, IAiService aiService, IUserToolRepository userToolRepository, IDeviceRepository deviceRepository, IPredictionManager predictionManager, IAppUserRepository appUserRepository) : base(repository, mapper)
         {
             _aiService = aiService;
             _userToolRepository = userToolRepository;
             _deviceRepository = deviceRepository;
             _predictionManager = predictionManager;
+            _appUserRepository = appUserRepository;
         }
 
         public async Task<RepairRequestDto> CreateAiSupportGuidanceAsync(CreateRepairRequestDto dto)
         {
-            // --- 1. ADIM: CİHAZ KONTROLÜ VE ÖĞRENME (GATEKEEPER) ---
-            // Veritabanında bu isimde veya benzer isimde bir cihaz var mı?
             var device = await _deviceRepository.FindBestMatchAsync(dto.DeviceName);
-
             int appliedDifficulty;
             int? finalDeviceId = null;
 
             if (device != null)
             {
-                // Senaryo A: Cihaz sistemde zaten var.
                 appliedDifficulty = device.DifficultyScore;
                 finalDeviceId = device.Id;
             }
             else
             {
-                // Senaryo B: Cihaz sistemde yok. AI'ya analiz ettirip öğreneceğiz.
                 var analysis = await _aiService.AnalyzeNewDeviceAsync(dto.DeviceName);
+                if (!analysis.IsEligible) throw new Exception($"Kapsam Dışı: {analysis.AnalysisReason}");
 
-                if (!analysis.IsEligible)
-                {
-                    // Eğer AI "Uzay Roketi uygun değil" dediyse burada işlemi kesiyoruz.
-                    throw new Exception($"Tamir Kapsamı Dışı: {analysis.AnalysisReason}");
-                }
-
-                // AI uygun dedi; cihazı veritabanına ekle (Öğrenme Aşaması)
+                // Yeni cihazı ekliyoruz
                 var newDevice = await _deviceRepository.CreateAndReturnDeviceAsync(
-                    dto.DeviceName,
-                    analysis.DifficultyScore,
-                    analysis.ToolCategoryId);
-
+                    dto.DeviceName, analysis.DifficultyScore, analysis.ToolCategoryId);
                 appliedDifficulty = newDevice.DifficultyScore;
                 finalDeviceId = newDevice.Id;
             }
 
-            // --- 2. ADIM: ML.NET BAŞARI TAHMİNİ ---
-            // Mühürlü modelimizi kullanarak kullanıcının bu cihazı tamir etme olasılığını hesaplıyoruz.
-            var prediction = _predictionManager.Predict(appliedDifficulty, dto.TargetLevel);
+            // Kullanıcının gerçek tecrübe puanını alalım (Tahmin kalitesi için)
+            var user = await _appUserRepository.GetByIdAsync(dto.AppUserId); // Veya uygun repo üzerinden çekin
+            int userScore = user?.ExperienceScore ?? 50;
 
-            // --- 3. ADIM: AI REHBER ÜRETİMİ (MEVCUT MANTIĞIN) ---
-            var tools = _userToolRepository.Where(x => x.AppUserId == dto.AppUserId)
-                                           .Select(x => x.Tool.Name).ToList();
+            // ML Tahmini (ModelInput artık zorluk ve gerçek kullanıcı puanını alıyor)
+            var prediction = _predictionManager.Predict(appliedDifficulty, dto.TargetLevel, userScore);
 
-            // AI'ya cihaz adını ve zorluğunu da net şekilde bildiriyoruz.
-            var aiResult = await _aiService.GetRepairGuidanceAsync(
-                dto.ProblemDescription,
-                dto.DeviceName,
-                tools,
-                dto.TargetLevel);
+            var tools = _userToolRepository.Where(x => x.AppUserId == dto.AppUserId).Select(x => x.Tool.Name).ToList();
+            var aiResult = await _aiService.GetRepairGuidanceAsync(dto.ProblemDescription, dto.DeviceName, tools, dto.TargetLevel);
 
-            // --- 4. ADIM: KAYIT VE ENTITY MAPPING ---
             var entity = _mapper.Map<RepairRequest>(dto);
-
-            // Yeni eklediğimiz property'leri set edelim (Daha önce konuştuğumuz snapshot mantığı)
+            entity.Id = 0;
+            entity.SuccessProbability = (decimal)prediction.Probability;
             entity.DeviceId = finalDeviceId;
             entity.DeviceDifficulty = appliedDifficulty;
-            // entity.SuccessProbability = prediction.Score; // DB'de kolonun varsa ekle
+
+            // entity.SuccessProbability = prediction.Probability; // Entity'de bu alan varsa açın
 
             entity.RawAiResponse = aiResult.RawResponse;
             entity.Status = "InProgress";
             entity.CreatedDate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc);
 
-            if (entity.Steps == null) entity.Steps = new List<RepairStep>();
-
-            // Adımları döngü ile ekleme (Mevcut kodun)
-            for (int i = 0; i < aiResult.StepDetails.Count; i++)
+            // Adımları ekleme
+            entity.Steps = aiResult.StepDetails.Select((sd, index) => new RepairStep
             {
-                var stepDetail = aiResult.StepDetails[i];
-                entity.Steps.Add(new RepairStep
-                {
-                    StepNumber = i + 1,
-                    Instruction = stepDetail.Instruction,
-                    ToolSuggestion = stepDetail.Tool,
-                    IsCompleted = false
-                });
-            }
+                StepNumber = index + 1,
+                Instruction = sd.Instruction,
+                ToolSuggestion = sd.Tool,
+                IsCompleted = false
+            }).ToList();
 
             await _repository.AddAsync(entity);
             await _repository.SaveChangesAsync();
@@ -105,51 +83,56 @@ namespace RepairGuidance.InnerInfrastructure.Managers
             return _mapper.Map<RepairRequestDto>(entity);
         }
 
-        //public async Task<RepairRequestDto> CreateAiSupportGuidanceAsync(CreateRepairRequestDto dto)
-        // {
-        //     // Kullanıcının elindeki alet isimlerini db'den çekelim
-        //     var tools = _userToolRepository.Where(x => x.AppUserId == dto.AppUserId).Select(x => x.Tool.Name).ToList();
 
-        //     // 1. AI SERVİSİNİ ÇAĞIRMA (IAiService -> GroqAiService çalıştırır, Program.cs sayesinde)
-        //     // GroqAiService'e gidiyoruz. O bize hem ham metni hem de parçalanmış Steps listesini içeren  "AiRepairResult" nesnesini dönüyor.
+        public async Task<string> CompleteRepairRequestAsync(int requestId)
+        {
+            // 1. Talebi getir
+            var request = await _repository.GetByIdAsync(requestId);
+            if (request == null) return "Tamir kaydı bulunamadı.";
+            if (request.Status == "Completed") return "Bu tamir zaten başarıyla sonuçlanmış.";
 
-        //     var aiResult = await _aiService.GetRepairGuidanceAsync(dto.ProblemDescription, dto.DeviceName, tools, dto.TargetLevel);
+            // 2. Status Güncelle
+            request.Status = "Completed";
+            _repository.Update(request);
 
-        //     // Gelen veri ile beraber eksik verileri de doldurarak db kaydetmek
-        //     // için entity'e çevirme ve db'ye kaydetme işlemi:
-        //     var entity = _mapper.Map<RepairRequest>(dto);
-        //     entity.RawAiResponse = aiResult.RawResponse;
-        //     entity.Status = "InProgress";
-        //     // PostgreSQL ve .NET arasındaki saat farkı sorununu (UTC) bu şekilde çözüyoruz.
-        //     entity.CreatedDate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc);
+            // 3. Kullanıcıya Tecrübe Puanı Ekle
+            var user = await _appUserRepository.GetByIdAsync(request.AppUserId);
+            if (user != null)
+            {
+                // Algoritma: Cihaz Zorluğu / 20 kadar puan ekle (Örn: Drone 80 ise +8 puan)
+                int earnedPoints = CalculateEarnedPoints(request.DeviceDifficulty, user.ExperienceScore);
+                user.ExperienceScore += earnedPoints;
 
-        //     if (entity.Steps == null)
-        //     {
-        //         entity.Steps = new List<RepairStep>();
-        //     }
+                // Puan arttıkça Seviye (Level) isimlendirmesini güncelle
+                if (user.ExperienceScore >= 75) user.ExperienceLevel = "Uzman";
+                else if (user.ExperienceScore >= 40) user.ExperienceLevel = "Orta";
 
-        //     // 4. ADIMLARI (RepairStep) TEK TEK OLUŞTURMA
-        //     for (int i = 0; i < aiResult.StepDetails.Count; i++)
-        //     {
-        //         var stepDetail = aiResult.StepDetails[i];
+                _appUserRepository.Update(user);
+            }
 
-        //         var step = new RepairStep
-        //         {
-        //             StepNumber = i + 1,
-        //             Instruction = stepDetail.Instruction, // Parçaladığımız talimat
-        //             ToolSuggestion = stepDetail.Tool,     // Parçaladığımız alet önerisi
-        //             IsCompleted = false
-        //         };
+            await _repository.SaveChangesAsync();
+            return $"Tebrikler! Tamiri başarıyla bitirdiniz ve {request.DeviceDifficulty / 10} tecrübe puanı kazandınız.";
+        }
 
-        //         entity.Steps.Add(step);
-        //     }
 
-        //     await _repository.AddAsync(entity);
-        //     await _repository.SaveChangesAsync();
+        private int CalculateEarnedPoints(int deviceDifficulty, int userCurrentScore)
+        {
+            // Temel puan (80 zorluk için 4 puan)
+            double basePoints = deviceDifficulty / 20.0;
 
-        //     // Sonuç dto tipinde dönecek. Gereksiz veri kullanıcıya gözükmesin diye
-        //     return _mapper.Map<RepairRequestDto>(entity);
-        // }
+            // Meydan okuma bonusu: Eğer cihaz zorluğu kullanıcının puanından yüksekse
+            if (deviceDifficulty > userCurrentScore)
+            {
+                basePoints += 2;
+            }
+
+            // En az 1 puan, en fazla 10 puan (limit koymak güvenlidir)
+            return (int)Math.Clamp(basePoints, 1, 10);
+        }
 
     }
-}
+
+    }
+
+
+

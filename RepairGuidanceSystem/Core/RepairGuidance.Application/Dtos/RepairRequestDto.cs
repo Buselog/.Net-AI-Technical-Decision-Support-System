@@ -14,6 +14,7 @@ namespace RepairGuidance.Application.Dtos
         public string? TargetLevel { get; set; } 
         public string Status { get; set; } 
         public DateTime CreatedDate { get; set; }
+        public decimal SuccessProbability { get; set; }
 
         // ilişkili adımlar
         public List<RepairStepDto>? Steps { get; set; } 

@@ -25,14 +25,13 @@ namespace RepairGuidance.WebApi.Controllers
 
         // 2. Tahmin Testi: Yeni 'Predict' metodunu deniyoruz.
         [HttpGet("test-predict")]
-        public IActionResult Test(int difficulty = 80, string targetLevel = "Acemi")
+        public IActionResult Test(int difficulty = 80, string targetLevel = "Acemi", float experienceScore = 30)
         {
-            // Yeni metodumuz artık Task (async) değil, doğrudan nesne dönüyor.
-            var result = _predictionManager.Predict(difficulty, targetLevel);
+            var result = _predictionManager.Predict(difficulty, targetLevel, experienceScore);
 
             return Ok(new
             {
-                Input = new { DeviceDifficulty = difficulty, UserLevel = targetLevel },
+                Input = new { DeviceDifficulty = difficulty, UserLevel = targetLevel, ExperienceScore = experienceScore },
                 Prediction = result.Prediction ? "Başarılı Olabilir" : "Başarısız Olabilir",
                 SuccessProbability = $"%{result.Probability * 100:F2}",
                 RawScore = result.Score // Modelin ürettiği ham skor

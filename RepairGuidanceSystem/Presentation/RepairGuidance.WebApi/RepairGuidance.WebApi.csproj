@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\Infrastructure\RepairGuidance.Persistence\RepairGuidance.Persistence.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\" />
+  </ItemGroup>
+
 </Project>

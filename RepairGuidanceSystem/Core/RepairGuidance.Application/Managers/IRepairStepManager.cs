@@ -10,5 +10,6 @@ namespace RepairGuidance.Application.Managers
 {
     public interface IRepairStepManager : IBaseManager<RepairStep, RepairStepDto>
     {
+        Task<bool> UpdateStepStatusAsync(int stepId, bool isCompleted);
     }
 }

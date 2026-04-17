@@ -47,5 +47,7 @@ namespace RepairGuidance.Domain.Entities.Concretes
         public int DeviceDifficulty { get; set; }
         public bool IsTestData { get; set; } = true;
 
+        public decimal SuccessProbability { get; set; }
+
     }
 }
