@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.ML.Transforms;
 using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Contract.Repositories;
@@ -13,14 +15,18 @@ namespace RepairGuidance.InnerInfrastructure.Managers
         private readonly IDeviceRepository _deviceRepository;
         private readonly IPredictionManager _predictionManager;
         private readonly IAppUserRepository _appUserRepository;
+        private readonly IRepairStepRepository _repairStepRepository;
+        private readonly ISupportMessageRepository _supportMessageRepository;
 
-        public RepairRequestManager(IRepairRequestRepository repository, IMapper mapper, IAiService aiService, IUserToolRepository userToolRepository, IDeviceRepository deviceRepository, IPredictionManager predictionManager, IAppUserRepository appUserRepository) : base(repository, mapper)
+        public RepairRequestManager(IRepairRequestRepository repository, IMapper mapper, IAiService aiService, IUserToolRepository userToolRepository, IDeviceRepository deviceRepository, IPredictionManager predictionManager, IAppUserRepository appUserRepository, IRepairStepRepository repairStepRepository, ISupportMessageRepository supportMessageRepository) : base(repository, mapper)
         {
             _aiService = aiService;
             _userToolRepository = userToolRepository;
             _deviceRepository = deviceRepository;
             _predictionManager = predictionManager;
             _appUserRepository = appUserRepository;
+            _repairStepRepository = repairStepRepository;
+            _supportMessageRepository = supportMessageRepository;
         }
 
         public async Task<RepairRequestDto> CreateAiSupportGuidanceAsync(CreateRepairRequestDto dto)
@@ -54,7 +60,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
             var prediction = _predictionManager.Predict(appliedDifficulty, dto.TargetLevel, userScore);
 
             var tools = _userToolRepository.Where(x => x.AppUserId == dto.AppUserId).Select(x => x.Tool.Name).ToList();
-            var aiResult = await _aiService.GetRepairGuidanceAsync(dto.ProblemDescription, dto.DeviceName, tools, dto.TargetLevel);
+            var aiResult = await _aiService.GetRepairGuidanceAsync(dto.ProblemDescription, dto.DeviceName, tools, dto.TargetLevel, appliedDifficulty);
 
             var entity = _mapper.Map<RepairRequest>(dto);
             entity.Id = 0;
@@ -130,9 +136,46 @@ namespace RepairGuidance.InnerInfrastructure.Managers
             return (int)Math.Clamp(basePoints, 1, 10);
         }
 
-    }
+        public async Task<string> GetSupportForStepAsync(AiSupportRequestDto dto)
+        {
+            // 1. Adımı Getir (Include işlemi Repository katmanında veya burada IQueryable ile yapılmalı)
+            // Onion Architecture'da navigasyon propertyleri (Include) için Repository metodunu kullanıyoruz.
+            var step = await _repairStepRepository.Where(s => s.RepairRequestId == dto.RepairRequestId && s.StepNumber == dto.StepNumber)
+                                                   .Include(s => s.RepairRequest)
+                                                   .Include(s => s.SupportMessages)
+                                                   .FirstOrDefaultAsync();
+
+            if (step == null) return "Adım bilgisi bulunamadı.";
+
+            var user = await _appUserRepository.GetByIdAsync(step.RepairRequest.AppUserId);
+            int userScore = user?.ExperienceScore ?? 50;
+
+            // 2. AI'dan destek al (Geçmiş mesajları tarih sırasına göre gönderiyoruz)
+            var aiAnswer = await _aiService.GetStepSupportWithHistoryAsync(
+                step.RepairRequest.DeviceName,
+                step.RepairRequest.ProblemDescription,
+                step.Instruction,
+                step.SupportMessages.OrderBy(m => m.SentAt).ToList(),
+                dto.UserQuestion,
+                userScore,                         
+                step.RepairRequest.DeviceDifficulty);
+
+            // 3. Mesajları Repository üzerinden kaydet
+            var userMsg = new SupportMessage { RepairStepId = step.Id, Sender = "User", Content = dto.UserQuestion };
+            var aiMsg = new SupportMessage { RepairStepId = step.Id, Sender = "AI", Content = aiAnswer };
+
+            await _supportMessageRepository.AddAsync(userMsg);
+            await _supportMessageRepository.AddAsync(aiMsg);
+
+            // Değişiklikleri fiziksel olarak kaydet
+            await _supportMessageRepository.SaveChangesAsync();
+
+            return aiAnswer;
+        }
 
     }
+
+ }
 
 
 

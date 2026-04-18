@@ -13,5 +13,7 @@ namespace RepairGuidance.Application.Managers
         Task<RepairRequestDto> CreateAiSupportGuidanceAsync(CreateRepairRequestDto dto);
 
         Task<string> CompleteRepairRequestAsync(int requestId);
+
+        Task<string> GetSupportForStepAsync(AiSupportRequestDto dto);
     }
 }

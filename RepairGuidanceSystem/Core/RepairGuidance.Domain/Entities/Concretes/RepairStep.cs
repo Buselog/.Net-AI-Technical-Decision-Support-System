@@ -26,5 +26,7 @@ namespace RepairGuidance.Domain.Entities.Concretes
         public string? ToolSuggestion { get; set; }
         public bool IsCompleted { get; set; }
 
+        public ICollection<SupportMessage> SupportMessages { get; set; }
+
     }
 }

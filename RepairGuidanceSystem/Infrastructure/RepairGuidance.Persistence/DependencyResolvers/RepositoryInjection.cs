@@ -20,6 +20,7 @@ namespace RepairGuidance.Persistence.DependencyResolvers
             services.AddScoped<IRepairRequestRepository, RepairRequestRepository>();
             services.AddScoped<IRepairStepRepository, RepairStepRepository>();
             services.AddScoped<IDeviceRepository, DeviceRepository>();
+            services.AddScoped<ISupportMessageRepository, SupportMessageRepository>();
         }
     }
 }

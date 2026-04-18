@@ -2,6 +2,7 @@
 using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Application.Models;
+using RepairGuidance.Domain.Entities.Concretes;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -23,7 +24,7 @@ namespace RepairGuidance.Infrastructure.ExternalServices
             _apiKey = configuration["GroqApi:ApiKey"];
         }
 
-        public async Task<AiRepairResult> GetRepairGuidanceAsync(string userProblem, string deviceName, List<string> availableTools, string targetLevel)
+        public async Task<AiRepairResult> GetRepairGuidanceAsync(string userProblem, string deviceName, List<string> availableTools, string targetLevel, int deviceDifficulty)
         {
             var url = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -39,9 +40,14 @@ namespace RepairGuidance.Infrastructure.ExternalServices
                     {
             new {
                 role = "system",
-                content = @"Sen profesyonel bir tamir asistanısın. Sadece Türkçe cevap ver. 
+                content = $@"Sen profesyonel bir tamir asistanısın. Öncelikle sadece Türkçe cevap ver. 
+                          Kullanıcı şu an [Cihaz Zorluğu: {deviceDifficulty}] olan bir cihaz için 
+                          [{targetLevel}] seviyesinde bir rehber talep etti.
+
                             Cevaplarını MUTLAKA VE KESİNLİKLE şu formatta ver: 
                             [Adım X: Talimat Metni | Alet: Alet Adı]
+                            Adımları KESİNLİKLE {targetLevel} seviyesindeki birinin anlayacağı zorlukta hazırla. 
+                            Ancak unutma; cihazın zorluğu {deviceDifficulty} seviyesinde. Eğer seviye farkı yüksekse, adımlara 'DİKKAT:' ile başlayan güvenlik notları ekle.
                             Kullanıcının elindeki aletleri önceliklendir. 
                             Eğer elinde yoksa ve kritikse mutlaka gerektiğini belirt.
                             Başka hiçbir açıklama metni ekleme, sadece bu formatta adımları sırala."
@@ -52,7 +58,7 @@ namespace RepairGuidance.Infrastructure.ExternalServices
                 content = $"Cihaz: {deviceName}. Sorun: {userProblem}. Kullanıcı Seviyesi: {targetLevel}.  Elindeki Aletler: {string.Join(", ", availableTools)}."
             }
         },
-                temperature = 0.3
+                temperature = 0.2
             };
 
             var response = await _client.PostAsJsonAsync(url, requestBody);
@@ -157,6 +163,60 @@ namespace RepairGuidance.Infrastructure.ExternalServices
             }
             return result;
         }
+
+        public async Task<string> GetStepSupportWithHistoryAsync(string deviceName, string problemDescription, string stepInstruction, List<SupportMessage> history, string newUserQuestion, int userExperienceScore, int deviceDifficulty)
+        {
+            var url = "https://api.groq.com/openai/v1/chat/completions";
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+
+            // 1. Geçmiş mesajları AI'nın anlayacağı formata çeviriyoruz
+            var messages = new List<object>
+             {
+              new {
+            role = "system",
+            content = $@"Sen profesyonel bir tamir uzmanı ve dünyanın en iyi teknik destek asistanısın. 
+                         Şu an kullanıcıya, kullanıcının tecrübe seviyesine ve cihazın zorluğuna göre spesifik bir tamir adımında yardımcı oluyor ve çözümler sunuyorsun..
+                         
+                         BAĞLAM VE SEVİYE BİLGİLERİ:
+                         - Cihaz: {deviceName} (Zorluk Skoru: {deviceDifficulty}/100)
+                         - Kullanıcı Tecrübe Puanı: {userExperienceScore}/100
+                         - Genel Arıza: {problemDescription}
+                         - Mevcut Talimat: {stepInstruction}
+
+                         KRİTİK TALİMATLAR:
+                         1. SEVİYEYE UYGUNLUK: Kullanıcının tecrübe puanı düşükse (0-40) evdeki basit yöntemleri ve güvenliği ön plana çıkar. Puan yüksekse (70+) daha teknik, profesyonel aletler gerektiren ve biraz daha ileri düzey olabilecek çözümler öner.
+                         2. HAFIZA KONTROLÜ: 'history' içindeki mesajları oku. Eğer kullanıcı bir önerini denediğini ve olmadığını söylüyorsa, o öneriyi ve benzerlerini (örneğin ısıtma dedinse ve olmadıysa, fön makinesi/pürmüz gibi her türlü ısıtma türevini) LİSTENDEN SİL.
+                         3. DİL VE TON: 
+                          - Kullanıcı Puanı <= 40 ise: Terimleri açıkla (Örn: 'Multimetreyi bip sesinin geldiği kısa devre moduna al'), çok sabırlı ol.
+                          - Kullanıcı Puanı >= 70 ise: Eğer kullanıcı puanı 70'den büyük ise teknik jargonu kullan. 70-80 puan aralığında teknik jargon konusunda yine biraz tedbirli olabilirsin; ama 80 ve üzeri puanda teknik jargonu kullanabilirsin artık. (Örn: 'Süreklilik modunda empedans kontrolü yap'), doğrudan sonuca git.
+                         4. REDDETME VE EMPATİ: Kullanıcının 'olmadı' dediği her durumda 'Anlıyorum, [Yöntem] sonuç vermediyse...' diyerek söze başla.
+                         5. KISA VE NET OL: Teknik terimleri kullanıcının seviyesine göre açıkla veya doğrudan kullan.
+                         6. ASLA İngilizce kelime (slightly, necessary vb.) kullanma. Saf Türkçe konuş."
+                         
+
+        }
+              };
+
+            foreach (var msg in history)
+            {
+                messages.Add(new { role = msg.Sender == "User" ? "user" : "assistant", content = msg.Content });
+            }
+
+            // 2. Yeni soruyu ekliyoruz
+            messages.Add(new { role = "user", content = newUserQuestion });
+
+            var requestBody = new
+            {
+                model = "llama-3.3-70b-versatile",
+                messages = messages.ToArray(),
+                temperature = 0.4
+            };
+
+            var response = await _client.PostAsJsonAsync(url, requestBody);
+            var result = await response.Content.ReadFromJsonAsync<GroqResponse>();
+            return result?.choices?[0]?.message?.content ?? "Destek alınamadı.";
+        }
+
     }
 
     // --- DATA TRANSFER OBJECTS (DTO) ---

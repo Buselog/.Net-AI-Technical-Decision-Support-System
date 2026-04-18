@@ -33,5 +33,12 @@ namespace RepairGuidance.WebApi.Controllers
             return Ok(history);
         }
 
+        [HttpPost("step-support")]
+        public async Task<IActionResult> GetStepSupport(AiSupportRequestDto dto)
+        {
+            var result = await _repairRequestManager.GetSupportForStepAsync(dto);
+            return Ok(new { Answer = result });
+        }
+
     }
 }

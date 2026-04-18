@@ -22,6 +22,7 @@ namespace RepairGuidance.Persistence.Context
         public DbSet<RepairStep> RepairSteps { get; set; }
         public DbSet<ToolCategory> ToolCategories { get; set; }
         public DbSet<Device> Devices { get; set; }
+        public DbSet<SupportMessage> SupportMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
