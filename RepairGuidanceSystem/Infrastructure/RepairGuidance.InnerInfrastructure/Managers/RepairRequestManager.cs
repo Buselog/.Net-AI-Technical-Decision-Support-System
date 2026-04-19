@@ -1,6 +1,5 @@
 ﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.ML.Transforms;
 using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Contract.Repositories;
@@ -55,6 +54,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
             // Kullanıcının gerçek tecrübe puanını alalım (Tahmin kalitesi için)
             var user = await _appUserRepository.GetByIdAsync(dto.AppUserId); // Veya uygun repo üzerinden çekin
             int userScore = user?.ExperienceScore ?? 50;
+
 
             // ML Tahmini (ModelInput artık zorluk ve gerçek kullanıcı puanını alıyor)
             var prediction = _predictionManager.Predict(appliedDifficulty, dto.TargetLevel, userScore);
@@ -150,6 +150,11 @@ namespace RepairGuidance.InnerInfrastructure.Managers
             var user = await _appUserRepository.GetByIdAsync(step.RepairRequest.AppUserId);
             int userScore = user?.ExperienceScore ?? 50;
 
+            var tools = _userToolRepository
+               .Where(x => x.AppUserId == step.RepairRequest.AppUserId)
+               .Select(x => x.Tool.Name)
+               .ToList();
+
             // 2. AI'dan destek al (Geçmiş mesajları tarih sırasına göre gönderiyoruz)
             var aiAnswer = await _aiService.GetStepSupportWithHistoryAsync(
                 step.RepairRequest.DeviceName,
@@ -158,7 +163,8 @@ namespace RepairGuidance.InnerInfrastructure.Managers
                 step.SupportMessages.OrderBy(m => m.SentAt).ToList(),
                 dto.UserQuestion,
                 userScore,                         
-                step.RepairRequest.DeviceDifficulty);
+                step.RepairRequest.DeviceDifficulty,
+                tools);
 
             // 3. Mesajları Repository üzerinden kaydet
             var userMsg = new SupportMessage { RepairStepId = step.Id, Sender = "User", Content = dto.UserQuestion };

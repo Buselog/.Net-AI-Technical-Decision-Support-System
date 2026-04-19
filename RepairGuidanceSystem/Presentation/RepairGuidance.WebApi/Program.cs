@@ -1,11 +1,10 @@
-using RepairGuidance.Persistence.DependencyResolvers;
-using RepairGuidance.Application.DependencyResolvers;
-using RepairGuidance.InnerInfrastructure.DependencyResolvers;
-using RepairGuidance.Application.Managers;
+using Microsoft.OpenApi.Models;
 using Polly;
+using RepairGuidance.Application.DependencyResolvers;
+using RepairGuidance.Application.Managers;
 using RepairGuidance.Infrastructure.ExternalServices;
-
-
+using RepairGuidance.InnerInfrastructure.DependencyResolvers;
+using RepairGuidance.Persistence.DependencyResolvers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +15,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddAuthenticationService(builder.Configuration);
 builder.Services.AddDbContextService(builder.Configuration);
 builder.Services.AddRepositoryServices();
 builder.Services.AddManagerServices();
@@ -23,6 +23,39 @@ builder.Services.AddMapperService();
 builder.Services.AddHttpClient<IAiService, GroqAiService>()
     .AddTransientHttpErrorPolicy(policy =>
         policy.WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Repair Guidance - Technical Decision Support System",
+        Description = "Yapay Zeka Destekli Basit Arýza Tamir Destek Sistemi"
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 
 var app = builder.Build();
@@ -36,6 +69,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

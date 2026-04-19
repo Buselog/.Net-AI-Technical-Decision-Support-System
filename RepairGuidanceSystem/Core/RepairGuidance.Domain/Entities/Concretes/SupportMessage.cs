@@ -1,5 +1,4 @@
-﻿
-using RepairGuidance.Domain.Entities.Abstracts;
+﻿using RepairGuidance.Domain.Entities.Abstracts;
 
 namespace RepairGuidance.Domain.Entities.Concretes
 {

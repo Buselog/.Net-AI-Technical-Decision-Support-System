@@ -1,5 +1,4 @@
-﻿
-using RepairGuidance.Contract.Repositories;
+﻿using RepairGuidance.Contract.Repositories;
 using RepairGuidance.Domain.Entities.Concretes;
 using RepairGuidance.Persistence.Context;
 

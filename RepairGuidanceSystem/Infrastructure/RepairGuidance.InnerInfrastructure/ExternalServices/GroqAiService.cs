@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Configuration;
-using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Application.Models;
 using RepairGuidance.Domain.Entities.Concretes;
@@ -48,8 +47,8 @@ namespace RepairGuidance.Infrastructure.ExternalServices
                             [Adım X: Talimat Metni | Alet: Alet Adı]
                             Adımları KESİNLİKLE {targetLevel} seviyesindeki birinin anlayacağı zorlukta hazırla. 
                             Ancak unutma; cihazın zorluğu {deviceDifficulty} seviyesinde. Eğer seviye farkı yüksekse, adımlara 'DİKKAT:' ile başlayan güvenlik notları ekle.
-                            Kullanıcının elindeki aletleri önceliklendir. 
-                            Eğer elinde yoksa ve kritikse mutlaka gerektiğini belirt.
+                            Talimatları KESİNLİKLE kullanıcının elindeki aletleri ({string.Join(", ", availableTools)}) kullanarak çözebileceği şekilde kurgula.
+                            Eğer arızayı gidermek için kullanıcının elinde olmayan bir alet ŞART ise (alternatifi yoksa), adımın alet kısmına 'GEREKLİ: [Alet Adı]' yaz ve talimatta neden gerektiğini açıkla.
                             Başka hiçbir açıklama metni ekleme, sadece bu formatta adımları sırala."
 
             },
@@ -164,7 +163,7 @@ namespace RepairGuidance.Infrastructure.ExternalServices
             return result;
         }
 
-        public async Task<string> GetStepSupportWithHistoryAsync(string deviceName, string problemDescription, string stepInstruction, List<SupportMessage> history, string newUserQuestion, int userExperienceScore, int deviceDifficulty)
+        public async Task<string> GetStepSupportWithHistoryAsync(string deviceName, string problemDescription, string stepInstruction, List<SupportMessage> history, string newUserQuestion, int userExperienceScore, int deviceDifficulty, List<string> availableTools)
         {
             var url = "https://api.groq.com/openai/v1/chat/completions";
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
@@ -180,18 +179,22 @@ namespace RepairGuidance.Infrastructure.ExternalServices
                          BAĞLAM VE SEVİYE BİLGİLERİ:
                          - Cihaz: {deviceName} (Zorluk Skoru: {deviceDifficulty}/100)
                          - Kullanıcı Tecrübe Puanı: {userExperienceScore}/100
+                         - Kullanıcının Elindeki Aletler: {string.Join(", ", availableTools)}.
                          - Genel Arıza: {problemDescription}
                          - Mevcut Talimat: {stepInstruction}
 
                          KRİTİK TALİMATLAR:
-                         1. SEVİYEYE UYGUNLUK: Kullanıcının tecrübe puanı düşükse (0-40) evdeki basit yöntemleri ve güvenliği ön plana çıkar. Puan yüksekse (70+) daha teknik, profesyonel aletler gerektiren ve biraz daha ileri düzey olabilecek çözümler öner.
-                         2. HAFIZA KONTROLÜ: 'history' içindeki mesajları oku. Eğer kullanıcı bir önerini denediğini ve olmadığını söylüyorsa, o öneriyi ve benzerlerini (örneğin ısıtma dedinse ve olmadıysa, fön makinesi/pürmüz gibi her türlü ısıtma türevini) LİSTENDEN SİL.
-                         3. DİL VE TON: 
+                         1. ÇÖZÜM ODAKLI ENVANTER: Tavsiye verirken ÖNCELİKLE kullanıcının elindeki aletleri kullanmasını sağla.
+                         2. EKSİK ALETLER: Eğer elinde olmayan bir alet öneriyorsan, bunun bir 'Yatırım/Satın Alma Tavsiyesi' olduğunu belirt.
+                         3. SEVİYEYE UYGUNLUK: Kullanıcının tecrübe puanı düşükse (0-40) evdeki basit yöntemleri ve güvenliği ön plana çıkar. Puan yüksekse (70+) daha teknik, profesyonel aletler gerektiren ve biraz daha ileri düzey olabilecek çözümler öner.
+                         4. HAFIZA KONTROLÜ: 'history' içindeki mesajları oku. Eğer kullanıcı bir önerini denediğini ve olmadığını söylüyorsa, o öneriyi ve benzerlerini (örneğin ısıtma dedinse ve olmadıysa, fön makinesi/pürmüz gibi her türlü ısıtma türevini) LİSTENDEN SİL.
+                         5. DİL VE TON: 
+                            {userExperienceScore} puanına uygun jargon seç. Yani:
                           - Kullanıcı Puanı <= 40 ise: Terimleri açıkla (Örn: 'Multimetreyi bip sesinin geldiği kısa devre moduna al'), çok sabırlı ol.
                           - Kullanıcı Puanı >= 70 ise: Eğer kullanıcı puanı 70'den büyük ise teknik jargonu kullan. 70-80 puan aralığında teknik jargon konusunda yine biraz tedbirli olabilirsin; ama 80 ve üzeri puanda teknik jargonu kullanabilirsin artık. (Örn: 'Süreklilik modunda empedans kontrolü yap'), doğrudan sonuca git.
-                         4. REDDETME VE EMPATİ: Kullanıcının 'olmadı' dediği her durumda 'Anlıyorum, [Yöntem] sonuç vermediyse...' diyerek söze başla.
-                         5. KISA VE NET OL: Teknik terimleri kullanıcının seviyesine göre açıkla veya doğrudan kullan.
-                         6. ASLA İngilizce kelime (slightly, necessary vb.) kullanma. Saf Türkçe konuş."
+                         6. REDDETME VE EMPATİ: Kullanıcının 'olmadı' dediği her durumda 'Anlıyorum, [Yöntem] sonuç vermediyse...' diyerek söze başla.
+                         7. KISA VE NET OL: Teknik terimleri kullanıcının seviyesine göre açıkla veya doğrudan kullan.
+                         8. ASLA İngilizce kelime (slightly, necessary vb.) kullanma. Saf Türkçe konuş."
                          
 
         }

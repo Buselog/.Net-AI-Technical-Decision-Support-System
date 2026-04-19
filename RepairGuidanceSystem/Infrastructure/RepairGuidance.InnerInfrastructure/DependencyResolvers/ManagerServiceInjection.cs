@@ -22,6 +22,7 @@ namespace RepairGuidance.InnerInfrastructure.DependencyResolvers
             services.AddScoped<IRepairStepManager, RepairStepManager>();
             services.AddScoped<IPredictionManager, PredictionManager>();
             services.AddScoped<IAiService, GroqAiService>();
+            services.AddScoped<IAuthManager, AuthManager>();
 
         }
     }

@@ -1,10 +1,5 @@
 ﻿using RepairGuidance.Application.Models;
 using RepairGuidance.Domain.Entities.Concretes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RepairGuidance.Application.Managers
 {
@@ -18,6 +13,6 @@ namespace RepairGuidance.Application.Managers
         //Sistemde olmayan cihazlar için cihazı analiz eden ve uygunluk veren metot:
         Task<DeviceAnalysisResult> AnalyzeNewDeviceAsync(string deviceName);
 
-        Task<string> GetStepSupportWithHistoryAsync(string deviceName, string problemDescription, string stepInstruction, List<SupportMessage> history, string newUserQuestion, int userExperienceScore, int deviceDifficulty);
+        Task<string> GetStepSupportWithHistoryAsync(string deviceName, string problemDescription, string stepInstruction, List<SupportMessage> history, string newUserQuestion, int userExperienceScore, int deviceDifficulty, List<string> availableTools);
     }
 }
