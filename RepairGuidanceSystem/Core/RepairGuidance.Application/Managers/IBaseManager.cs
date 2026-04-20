@@ -18,11 +18,8 @@ namespace RepairGuidance.Application.Managers
         Task<bool> AnyAsync(Expression<Func<D, bool>> exp);
 
         IQueryable<T> Where(Expression<Func<D, bool>> exp);
-        Task<string> AddAsync(T dto);
-        Task<string> UpdateAsync(T dto);
-        Task<string> DeleteAsync(T dto);
-
-       // Soft delete(pasife çekme)
-        //Task<string> RemoveAsync(T dto);
+        Task<T> AddAsync(T dto);
+        Task UpdateAsync(T dto);
+        Task DeleteAsync(T dto);
     }
 }

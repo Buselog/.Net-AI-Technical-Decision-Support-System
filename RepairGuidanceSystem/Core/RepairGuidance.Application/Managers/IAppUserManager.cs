@@ -10,6 +10,6 @@ namespace RepairGuidance.Application.Managers
 {
     public interface IAppUserManager : IBaseManager<AppUser, AppUserDto>
     {
-        //Crud dışında entity'ye özel metotlar gelecekse imzaları buraya eklenir.
+        Task<AppUserDto> GetUserByIdAsync(int id);
     }
 }

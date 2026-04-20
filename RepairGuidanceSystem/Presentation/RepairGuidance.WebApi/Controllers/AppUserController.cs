@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
-using RepairGuidance.InnerInfrastructure.Managers;
 
 namespace RepairGuidance.WebApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class AppUserController : ControllerBase
@@ -28,8 +28,7 @@ namespace RepairGuidance.WebApi.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetByIdAsync(int id)
         {
-            var value = await _appUserManager.GetByIdAsync(id);
-            if (value == null) return NotFound("Kullanıcı bulunamadı.");
+            var value = await _appUserManager.GetUserByIdAsync(id);
             return Ok(value);
         }
 
@@ -37,14 +36,14 @@ namespace RepairGuidance.WebApi.Controllers
         public async Task<IActionResult> CreateAsync(AppUserDto dto)
         {
             var value = await _appUserManager.AddAsync(dto);
-            return Ok(new { Message = value });
+            return Ok(value);
         }
 
         [HttpPut]
         public async Task<IActionResult> Update(AppUserDto dto)
         {
-            var value = await _appUserManager.UpdateAsync(dto);
-            return Ok(new { Message = value });
+            await _appUserManager.UpdateAsync(dto);
+            return Ok();
         }
     }
 }

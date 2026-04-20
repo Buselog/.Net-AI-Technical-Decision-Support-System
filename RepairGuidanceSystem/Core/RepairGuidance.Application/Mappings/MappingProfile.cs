@@ -22,6 +22,10 @@ namespace RepairGuidance.Application.Mappings
             CreateMap<UserTool, UserToolDto>()
                 .ForMember(dest => dest.ToolName, opt => opt.MapFrom(src => src.Tool.Name)).ReverseMap();
 
+            CreateMap<UserToolDto, UserTool>()
+               .ForMember(dest => dest.Tool, opt => opt.Ignore()) 
+               .ForMember(dest => dest.AppUser, opt => opt.Ignore());
+
             CreateMap<RepairRequest, RepairRequestDto>().ReverseMap();
 
             CreateMap<RepairStep, RepairStepDto>().ReverseMap();
@@ -30,7 +34,8 @@ namespace RepairGuidance.Application.Mappings
             CreateMap<CreateRepairRequestDto, RepairRequest>()
                 .ForMember(dest=> dest.Id, opt=> opt.Ignore());
 
-            CreateMap<UserRegisterDto, AppUser>();
+            CreateMap<UserRegisterDto, AppUser>()
+                .ForMember(dest => dest.Password, opt => opt.Ignore());
 
         }
 

@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 
 namespace RepairGuidance.WebApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class RepairRequestController : ControllerBase

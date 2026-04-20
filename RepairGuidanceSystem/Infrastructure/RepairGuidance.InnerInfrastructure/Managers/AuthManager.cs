@@ -4,6 +4,7 @@ using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Contract.Repositories;
 using RepairGuidance.Domain.Entities.Concretes;
+using RepairGuidance.Domain.Exceptions;
 using RepairGuidance.InnerInfrastructure.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -26,7 +27,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
         {
             // E-posta kontrolü
             var exists = await _userRepository.FirstOrDefaultAsync(u => u.Email == dto.Email);
-            if (exists != null) throw new Exception("Bu e-posta adresi zaten kullanımda.");
+            if (exists != null) throw new DuplicateEmailException();
 
             var user = new AppUser
             {
@@ -47,7 +48,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
             var user = await _userRepository.FirstOrDefaultAsync(u => u.Email == dto.Email);
             if (user == null || !PasswordHasher.VerifyPassword(dto.Password, user.Password))
             {
-                throw new Exception("Geçersiz e-posta veya şifre.");
+                throw new InvalidCredentialsException();
             }
 
             return new LoginResponseDto

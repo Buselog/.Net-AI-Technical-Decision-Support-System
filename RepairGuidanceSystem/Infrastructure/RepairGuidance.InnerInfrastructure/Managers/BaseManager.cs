@@ -3,6 +3,7 @@ using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Contract.Repositories;
 using RepairGuidance.Domain.Entities.Abstracts;
+using RepairGuidance.Domain.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -55,29 +56,26 @@ namespace RepairGuidance.InnerInfrastructure.Managers
         }
 
         // BaseManager'dan miras alacak child manager'lar bu metodu override edebilir(ezebilir) kendine göre -> virtual
-        public virtual async Task<string> AddAsync(T entity)
+        public virtual async Task<T> AddAsync(T dto)
         {
-            D domainEntity = _mapper.Map<D>(entity);
+            D domainEntity = _mapper.Map<D>(dto);
             await _repository.AddAsync(domainEntity);
             await _repository.SaveChangesAsync();
-            return "Ekleme başarılı.";
+            return _mapper.Map<T>(domainEntity);
         }
 
-        public async Task<string> UpdateAsync(T entity)
+        public async Task UpdateAsync(T dto)
         {
-            D domainEntity = _mapper.Map<D>(entity);
+            D domainEntity = _mapper.Map<D>(dto);
             _repository.Update(domainEntity);
             await _repository.SaveChangesAsync();
-            return "Güncelleme başarılı.";
         }
 
-
-        public async Task<string> DeleteAsync(T entity)
+        public async Task DeleteAsync(T dto)
         {
-            D domain = _mapper.Map<D>(entity);
+            D domain = _mapper.Map<D>(dto);
             _repository.Delete(domain);
             await _repository.SaveChangesAsync();
-            return "Silme işlemi başarılı";
         }
 
 

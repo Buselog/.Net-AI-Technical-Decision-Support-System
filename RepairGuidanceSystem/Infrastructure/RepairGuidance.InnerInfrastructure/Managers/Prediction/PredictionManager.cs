@@ -1,7 +1,8 @@
 ﻿using Microsoft.ML;
-using RepairGuidance.Application.Models;
 using RepairGuidance.Application.Managers;
+using RepairGuidance.Application.Models;
 using RepairGuidance.Contract.Repositories;
+using RepairGuidance.Domain.Exceptions;
 
 namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
 {
@@ -86,7 +87,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers.Prediction
         public ModelOutput Predict(int difficulty, string targetLevel, float experienceScore)
         {
             // Mühürlü modelden tahmin al
-            if (!File.Exists(_modelPath)) throw new Exception("Model dosyası bulunamadı. Lütfen önce eğitin.");
+            if (!File.Exists(_modelPath)) throw new ModelNotTrainedException();
 
             ITransformer loadedModel = _mlContext.Model.Load(_modelPath, out var schema);
             var engine = _mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(loadedModel);

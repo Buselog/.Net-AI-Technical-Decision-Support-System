@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RepairGuidance.Application.Managers;
 
 namespace RepairGuidance.WebApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class RepairStepController : ControllerBase
@@ -19,8 +20,7 @@ namespace RepairGuidance.WebApi.Controllers
         [HttpPatch("complete-step/{stepId}")]
         public async Task<IActionResult> CompleteStep(int stepId)
         {
-            var step = await _repairStepManager.GetByIdAsync(stepId);
-            if (step == null) return NotFound();
+            var step = await _repairStepManager.GetStepByIdAsync(stepId);
 
             step.IsCompleted = true;
             await _repairStepManager.UpdateAsync(step);

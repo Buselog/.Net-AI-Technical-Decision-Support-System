@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 
 namespace RepairGuidance.WebApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ToolController : ControllerBase
@@ -29,7 +30,7 @@ namespace RepairGuidance.WebApi.Controllers
         public async Task<IActionResult> Create(ToolDto dto)
         {
             var value = await _toolManager.AddAsync(dto);
-            return Ok(new { Message = value });
+            return Ok(value);
         }
 
     }

@@ -4,6 +4,7 @@ using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Contract.Repositories;
 using RepairGuidance.Domain.Entities.Concretes;
+using RepairGuidance.Domain.Exceptions;
 
 namespace RepairGuidance.InnerInfrastructure.Managers
 {
@@ -42,7 +43,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
             else
             {
                 var analysis = await _aiService.AnalyzeNewDeviceAsync(dto.DeviceName);
-                if (!analysis.IsEligible) throw new Exception($"Kapsam Dışı: {analysis.AnalysisReason}");
+                if (!analysis.IsEligible) throw new DeviceNotEligibleException(analysis.AnalysisReason);
 
                 // Yeni cihazı ekliyoruz
                 var newDevice = await _deviceRepository.CreateAndReturnDeviceAsync(
@@ -53,7 +54,9 @@ namespace RepairGuidance.InnerInfrastructure.Managers
 
             // Kullanıcının gerçek tecrübe puanını alalım (Tahmin kalitesi için)
             var user = await _appUserRepository.GetByIdAsync(dto.AppUserId); // Veya uygun repo üzerinden çekin
-            int userScore = user?.ExperienceScore ?? 50;
+            if (user == null) throw new UserNotFoundException();
+
+            int userScore = user.ExperienceScore;
 
 
             // ML Tahmini (ModelInput artık zorluk ve gerçek kullanıcı puanını alıyor)
@@ -90,12 +93,12 @@ namespace RepairGuidance.InnerInfrastructure.Managers
         }
 
 
-        public async Task<string> CompleteRepairRequestAsync(int requestId)
+        public async Task<RepairRequestDto> CompleteRepairRequestAsync(int requestId)
         {
             // 1. Talebi getir
             var request = await _repository.GetByIdAsync(requestId);
-            if (request == null) return "Tamir kaydı bulunamadı.";
-            if (request.Status == "Completed") return "Bu tamir zaten başarıyla sonuçlanmış.";
+            if (request == null) throw new RepairRequestNotFoundException();
+            if (request.Status == "Completed") throw new RepairAlreadyCompletedException();
 
             // 2. Status Güncelle
             request.Status = "Completed";
@@ -117,7 +120,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
             }
 
             await _repository.SaveChangesAsync();
-            return $"Tebrikler! Tamiri başarıyla bitirdiniz ve {request.DeviceDifficulty / 10} tecrübe puanı kazandınız.";
+            return _mapper.Map<RepairRequestDto>(request);
         }
 
 
@@ -145,7 +148,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
                                                    .Include(s => s.SupportMessages)
                                                    .FirstOrDefaultAsync();
 
-            if (step == null) return "Adım bilgisi bulunamadı.";
+            if (step == null) throw new StepNotFoundException();
 
             var user = await _appUserRepository.GetByIdAsync(step.RepairRequest.AppUserId);
             int userScore = user?.ExperienceScore ?? 50;

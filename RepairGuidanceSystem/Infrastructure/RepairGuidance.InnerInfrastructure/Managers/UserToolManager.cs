@@ -24,7 +24,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
         // Biz de override ederek, navigation property'lerini null yapıyoruz.
         // Böylece EF Core sadece ToolId ve AppUserId sütunlarını doldurur, 
         // gidip Tool tablosuna yeni satır eklemeye çalışmaz.
-        public override async Task<string> AddAsync(UserToolDto dto)
+        public override async Task<UserToolDto> AddAsync(UserToolDto dto)
         {
             var entity = _mapper.Map<UserTool>(dto);
 
@@ -34,7 +34,7 @@ namespace RepairGuidance.InnerInfrastructure.Managers
            await _repository.AddAsync(entity);
            await _repository.SaveChangesAsync();
 
-          return "Alet çantanıza başarıyla eklendi.";
+            return _mapper.Map<UserToolDto>(entity);
         }
 
     }
