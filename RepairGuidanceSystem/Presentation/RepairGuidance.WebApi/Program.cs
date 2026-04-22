@@ -5,6 +5,7 @@ using RepairGuidance.Application.Managers;
 using RepairGuidance.Infrastructure.ExternalServices;
 using RepairGuidance.InnerInfrastructure.DependencyResolvers;
 using RepairGuidance.Persistence.DependencyResolvers;
+using RepairGuidance.WebApi.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +59,13 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowReactApp",
+        policy => policy.WithOrigins("http://localhost:5174") 
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
+});
+
 
 var app = builder.Build();
 
@@ -69,6 +77,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<ExceptionMiddleware>();
+
+app.UseRouting();
+
+app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
 app.UseAuthorization();

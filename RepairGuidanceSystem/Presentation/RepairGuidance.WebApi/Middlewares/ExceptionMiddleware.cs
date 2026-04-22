@@ -36,6 +36,16 @@ namespace RepairGuidance.WebApi.Middlewares
                 FluentValidation.ValidationException valEx =>
                   (HttpStatusCode.BadRequest, string.Join(" | ", valEx.Errors.Select(e => e.ErrorMessage))),
 
+                DuplicateEmailException => (HttpStatusCode.Conflict, exception.Message),
+
+                InvalidCredentialsException => (HttpStatusCode.Unauthorized, exception.Message),
+
+                ModelNotTrainedException => (HttpStatusCode.UnprocessableEntity, exception.Message),
+
+                RepairAlreadyCompletedException => (HttpStatusCode.Conflict, exception.Message),
+
+                RepairRequestNotFoundException => (HttpStatusCode.NotFound, exception.Message),
+
                 UserNotFoundException => (HttpStatusCode.NotFound, exception.Message),
 
                 StepNotFoundException => (HttpStatusCode.NotFound, exception.Message),

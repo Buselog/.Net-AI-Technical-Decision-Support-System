@@ -3,14 +3,8 @@ using RepairGuidance.Application.Dtos;
 using RepairGuidance.Application.Managers;
 using RepairGuidance.Contract.Repositories;
 using RepairGuidance.Domain.Entities.Abstracts;
-using RepairGuidance.Domain.Exceptions;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace RepairGuidance.InnerInfrastructure.Managers
 {
